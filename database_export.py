@@ -1,36 +1,11 @@
 import sqlite3
 import shutil
 import os
+import networkx as nx
+from config import NODE_COL, LINK_COL, TURN_COL
 
 
-def drop_column(cursor, table_name, exclude_col="IS_EXIST"):
-    # 1. 전체 컬럼 목록 가져오기
-    cursor.execute(f"PRAGMA table_info({table_name})")
-    columns_info = cursor.fetchall()
-    all_columns = [col[1] for col in columns_info]
-
-    # 2. 제외할 컬럼 제거
-    filtered_columns = [col for col in all_columns if col != exclude_col]
-
-    # 3. 열 이름을 전부 "으로 감싸기
-    quoted_columns = [f'"{col}"' for col in filtered_columns]
-    columns_str = ", ".join(quoted_columns)
-
-    # 4. 새 테이블 생성
-    cursor.execute(
-        f"""
-        CREATE TABLE {table_name}_NEW AS
-        SELECT {columns_str}
-        FROM {table_name}
-        """
-    )
-
-    # 5. 기존 테이블 삭제 후 이름 변경
-    cursor.execute(f"DROP TABLE {table_name}")
-    cursor.execute(f"ALTER TABLE {table_name}_NEW RENAME TO {table_name}")
-
-
-def database_export(input_path, output_path):
+def database_export(input_path, output_path, G, G_turn):
     # 원본 DB 복사
     if os.path.exists(output_path):
         os.remove(output_path)
@@ -38,11 +13,45 @@ def database_export(input_path, output_path):
 
     # 복사본에 연결
     conn_copied = sqlite3.connect(output_path)
-    copied_cursor = conn_copied.cursor()
+    cursor = conn_copied.cursor()
 
-    drop_column(copied_cursor, "NODE")
-    drop_column(copied_cursor, "LINK")
-    drop_column(copied_cursor, "TURN")
+    # 1. NODE 테이블 정리
+    valid_node_nos = set(G.nodes)
+    cursor.execute(f"SELECT {','.join(NODE_COL)} FROM NODE")
+    all_node_nos = {row[0] for row in cursor.fetchall()}
+    to_delete_nodes = all_node_nos - valid_node_nos
+    print(
+        f"original node num: {len(valid_node_nos)}, simplfied node num:{len(all_node_nos)}"
+    )
+    for node_no in to_delete_nodes:
+        cursor.execute("DELETE FROM NODE WHERE NO=?", (node_no,))
+
+    # 2. LINK 테이블 정리
+    valid_link_nos = {(u, v) for u, v in G.edges()}
+    cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
+    all_link_nos = {(row[0], row[1]) for row in cursor.fetchall()}
+    to_delete_links = all_link_nos - valid_link_nos
+    print(
+        f"original link num: {len(valid_link_nos)}, simplified link num: {len(all_link_nos)}"
+    )
+    for link_no in to_delete_links:
+        cursor.execute("DELETE FROM LINK WHERE NO=?", (link_no,))
+
+    # 3. TURN 테이블 정리
+    valid_turn_triples = {
+        (data["f"], data["v"], data["t"]) for _, _, data in G_turn.edges(data=True)
+    }
+    cursor.execute(f"SELECT {','.join(TURN_COL)} FROM TURN")
+    all_turn_triples = {(row[0], row[1], row[2]) for row in cursor.fetchall()}
+    to_delete_turns = all_turn_triples - valid_turn_triples
+    print(
+        f"original turn num: {len(valid_turn_triples)}, simplfied turn num: {len(all_turn_triples)}"
+    )
+    for f, v, t in to_delete_turns:
+        cursor.execute(
+            "DELETE FROM TURN WHERE FROMNODENO=? AND VIANODENO=? AND TONODENO=?",
+            (f, v, t),
+        )
 
     conn_copied.commit()
     conn_copied.close()

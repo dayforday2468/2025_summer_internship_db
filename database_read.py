@@ -1,9 +1,6 @@
 import networkx as nx
 import sqlite3
-
-NODE_COL = ["NO", "XCOORD", "YCOORD"]
-LINK_COL = ["NO", "FROMNODENO", "TONODENO", "LENGTH", "TYPENO", "CAPPRT"]
-TURN_COL = ["FROMNODENO", "VIANODENO", "TONODENO"]
+from config import NODE_COL, LINK_COL, TURN_COL
 
 
 def build_node_link_graph(cursor):
@@ -12,15 +9,14 @@ def build_node_link_graph(cursor):
     # 노드 정보
     cursor.execute(f"SELECT {','.join(NODE_COL)} FROM NODE")
     for node_id, x, y in cursor.fetchall():
-        G.add_node(str(node_id), x=x, y=y)
+        G.add_node(node_id, x=x, y=y)
 
     # 링크 정보
     cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
-    for link_id, u, v, length, typeno, capprt in cursor.fetchall():
+    for u, v, length, typeno, capprt in cursor.fetchall():
         G.add_edge(
-            str(u),
-            str(v),
-            link_id=str(link_id),
+            u,
+            v,
             length=length,
             typeno=typeno,
             capprt=capprt,
@@ -29,14 +25,15 @@ def build_node_link_graph(cursor):
     return G
 
 
+# 같은 link_id에 다른 방향 도로 2개가 포함되어 있어서 link_id는 사용하지 않습니다.
 def build_turn_graph(cursor):
     G = nx.DiGraph()
 
     # 노드 정보 (LINK를 노드로 취급)
     cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
-    for link_id, u, v, length, typeno, capprt in cursor.fetchall():
+    for u, v, length, typeno, capprt in cursor.fetchall():
         G.add_node(
-            str(link_id),
+            f"{u}_{v}",
             u=u,
             v=v,
             length=length,
@@ -47,7 +44,7 @@ def build_turn_graph(cursor):
     # 링크 정보 (TURN을 링크로 취급)
     cursor.execute(f"SELECT {','.join(TURN_COL)} FROM TURN")
     for f, v, t in cursor.fetchall():
-        G.add_edge(f"{f}_{v}", f"{v}_{t}")
+        G.add_edge(f"{f}_{v}", f"{v}_{t}", f=f, v=v, t=t)
 
     return G
 
