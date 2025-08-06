@@ -8,8 +8,8 @@ def build_node_link_graph(cursor):
 
     # 노드 정보
     cursor.execute(f"SELECT {','.join(NODE_COL)} FROM NODE")
-    for node_id, x, y in cursor.fetchall():
-        G.add_node(node_id, x=x, y=y)
+    for node_id, x, y, turn_info in cursor.fetchall():
+        G.add_node(node_id, x=x, y=y, turn_info=turn_info)
 
     # 링크 정보
     cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
@@ -25,7 +25,6 @@ def build_node_link_graph(cursor):
     return G
 
 
-# 같은 link_id에 다른 방향 도로 2개가 포함되어 있어서 link_id는 사용하지 않습니다.
 def build_turn_graph(cursor):
     G = nx.DiGraph()
 

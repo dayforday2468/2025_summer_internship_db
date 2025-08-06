@@ -16,12 +16,12 @@ def database_export(input_path, output_path, G, G_turn):
     cursor = conn_copied.cursor()
 
     # 1. NODE 테이블 정리
-    valid_node_nos = set(G.nodes)
+    valid_node_nos = set(G.nodes())
     cursor.execute(f"SELECT {','.join(NODE_COL)} FROM NODE")
     all_node_nos = {row[0] for row in cursor.fetchall()}
     to_delete_nodes = all_node_nos - valid_node_nos
     print(
-        f"original node num: {len(valid_node_nos)}, simplfied node num:{len(all_node_nos)}"
+        f"original node num: {len(all_node_nos)}, simplfied node num:{len(valid_node_nos)}"
     )
     for node_no in to_delete_nodes:
         cursor.execute("DELETE FROM NODE WHERE NO=?", (node_no,))
@@ -32,10 +32,12 @@ def database_export(input_path, output_path, G, G_turn):
     all_link_nos = {(row[0], row[1]) for row in cursor.fetchall()}
     to_delete_links = all_link_nos - valid_link_nos
     print(
-        f"original link num: {len(valid_link_nos)}, simplified link num: {len(all_link_nos)}"
+        f"original link num: {len(all_link_nos)}, simplified link num: {len(valid_link_nos)}"
     )
-    for link_no in to_delete_links:
-        cursor.execute("DELETE FROM LINK WHERE NO=?", (link_no,))
+    for FROMNODENO, TONODENO in to_delete_links:
+        cursor.execute(
+            "DELETE FROM LINK WHERE FROMNODENO=? AND TONODENO=?", (FROMNODENO, TONODENO)
+        )
 
     # 3. TURN 테이블 정리
     valid_turn_triples = {
@@ -45,7 +47,7 @@ def database_export(input_path, output_path, G, G_turn):
     all_turn_triples = {(row[0], row[1], row[2]) for row in cursor.fetchall()}
     to_delete_turns = all_turn_triples - valid_turn_triples
     print(
-        f"original turn num: {len(valid_turn_triples)}, simplfied turn num: {len(all_turn_triples)}"
+        f"original turn num: {len(all_turn_triples)}, simplfied turn num: {len(valid_turn_triples)}"
     )
     for f, v, t in to_delete_turns:
         cursor.execute(
