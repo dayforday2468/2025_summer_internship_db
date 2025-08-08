@@ -5,7 +5,7 @@ import networkx as nx
 from config import NODE_COL, LINK_COL, TURN_COL
 
 
-def database_export(input_path, output_path, G, G_turn):
+def database_export(input_path, output_path, G, turn):
     # 원본 DB 복사
     if os.path.exists(output_path):
         os.remove(output_path)
@@ -40,14 +40,11 @@ def database_export(input_path, output_path, G, G_turn):
         )
 
     # 3. TURN 테이블 정리
-    valid_turn_triples = {
-        (data["f"], data["v"], data["t"]) for _, _, data in G_turn.edges(data=True)
-    }
     cursor.execute(f"SELECT {','.join(TURN_COL)} FROM TURN")
     all_turn_triples = {(row[0], row[1], row[2]) for row in cursor.fetchall()}
-    to_delete_turns = all_turn_triples - valid_turn_triples
+    to_delete_turns = all_turn_triples - turn
     print(
-        f"original turn num: {len(all_turn_triples)}, simplfied turn num: {len(valid_turn_triples)}"
+        f"original turn num: {len(all_turn_triples)}, simplfied turn num: {len(turn)}"
     )
     for f, v, t in to_delete_turns:
         cursor.execute(

@@ -9,6 +9,25 @@ from database_clean import database_clean
 from database_export import database_export
 
 
+def plot_graph(G, title=None):
+    plt.figure(figsize=(8, 6))
+
+    # 노드의 위치 추출 (dict 형태: {node: (x, y)})
+    pos = {
+        node: (data["x"], data["y"])
+        for node, data in G.nodes(data=True)
+        if "x" in data and "y" in data
+    }
+    # 노드와 엣지만 시각화
+    nx.draw(G, pos, node_size=10, node_color="black", width=1, arrows=False)
+
+    if title:
+        plt.title(title)
+
+    plt.axis("off")
+    plt.show()
+
+
 def initialization():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     for file in os.listdir(script_dir):
@@ -25,13 +44,13 @@ def run_pipeline():
     export_path = os.path.join(script_dir, "simplified_map.sqlite3")
 
     # 그래프 구축
-    G, G_turn = database_read(db_path)
+    G, turn = database_read(db_path)
 
-    # # 데이터 베이스 클리닝
-    # G, G_turn = database_clean(G, G_turn)
+    # 데이터 베이스 클리닝
+    G, turn = database_clean(G, turn)
 
     # 데이터 베이스 저장
-    database_export(db_path, export_path, G, G_turn)
+    database_export(db_path, export_path, G, turn)
 
 
 if __name__ == "__main__":
