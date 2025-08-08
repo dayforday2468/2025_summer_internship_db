@@ -9,9 +9,8 @@ sys.setrecursionlimit(10000)
 
 
 def isolated_nodes(G, turn):
-    print(
-        f"Before isolation clean node num: {len(G.nodes())}, Before isolation clean turn num: {len(turn)}"
-    )
+    print("Isolated_nodes")
+    print(f"Before(#node,#edge,#turn):{len(G.nodes())}|{len(G.edges())}|{len(turn)}")
     # G에서 isolated nodes 찾기
     nodes_to_remove_G = [node for node in G.nodes() if G.degree(node) == 0]
 
@@ -29,9 +28,7 @@ def isolated_nodes(G, turn):
         )
     }
 
-    print(
-        f"After isolation clean node num: {len(G.nodes())}, After isolation clean turn num: {len(turn)}"
-    )
+    print(f"After(#node,#edge,#turn): {len(G.nodes())}|{len(G.edges())}|{len(turn)}")
 
     return G, turn
 
@@ -136,18 +133,15 @@ def plot_sccs(sccs, G, max_plots=20):
 
 
 def largest_cc(G, turn, sccs):
-    print(
-        f"Before largest_cc clean node num: {len(G.nodes())}, Before largest_cc clean turn num: {len(turn)}"
-    )
+    print("largest_cc")
+    print(f"Before(#node,#edge,#turn):{len(G.nodes())}|{len(G.edges())}|{len(turn)}")
     scc = max(sccs, key=lambda x: len(x["nodes"]))
 
     nodes_to_remove = set(G.nodes()) - set(scc["nodes"])
     G.remove_nodes_from(nodes_to_remove)
 
     turn = turn & set(scc["turns"])
-    print(
-        f"After largest_cc clean node num: {len(G.nodes())}, After largest_cc clean turn num: {len(turn)}"
-    )
+    print(f"After(#node,#edge,#turn): {len(G.nodes())}|{len(G.edges())}|{len(turn)}")
 
     return G, turn
 

@@ -10,6 +10,7 @@ from database_export import database_export
 
 
 from dead_ends import run_dead_ends, view_dead_ends
+from parallel_edges import run_parallel_edges, view_parallel_edges
 
 
 def plot_graph(G, title=None):
@@ -52,9 +53,14 @@ def run_pipeline():
     # 데이터 베이스 클리닝
     G, turn = database_clean(G, turn)
 
+    # parallel_edges
+    view_parallel_edges(G)
+    G = run_parallel_edges(G, turn)
+
     # dead_ends
-    view_dead_ends(G, turn)
+    view_dead_ends(G)
     G, turn = run_dead_ends(G, turn)
+    print("✅ Pipeline Complete!")
 
     # 데이터 베이스 저장
     database_export(db_path, export_path, G, turn)
