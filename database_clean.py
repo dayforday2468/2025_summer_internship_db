@@ -109,7 +109,7 @@ def plot_sccs(sccs, G, max_plots=20):
     # 전체 위치 설정
     pos = {node: (G.nodes[node]["x"], G.nodes[node]["y"]) for node in G.nodes}
 
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(10, 8))
 
     # 모든 edge는 회색으로 그리기
     nx.draw_networkx_edges(G, pos, edge_color="gray", arrows=False, width=0.5)

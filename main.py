@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import matplotlib.pyplot as plt
 import networkx as nx
 import osmnx as ox
@@ -11,6 +10,7 @@ from database_export import database_export
 
 from dead_ends import run_dead_ends, view_dead_ends
 from parallel_edges import run_parallel_edges, view_parallel_edges
+from self_loops import run_self_loops, view_self_loops
 
 
 def plot_graph(G, title=None):
@@ -56,6 +56,10 @@ def run_pipeline():
     # parallel_edges
     view_parallel_edges(G)
     G = run_parallel_edges(G, turn)
+
+    # self_loops
+    view_self_loops(G)
+    G, turn = run_self_loops(G, turn)
 
     # dead_ends
     view_dead_ends(G)
