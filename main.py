@@ -9,6 +9,9 @@ from database_clean import database_clean
 from database_export import database_export
 
 
+from dead_ends import run_dead_ends, view_dead_ends
+
+
 def plot_graph(G, title=None):
     plt.figure(figsize=(8, 6))
 
@@ -48,6 +51,10 @@ def run_pipeline():
 
     # 데이터 베이스 클리닝
     G, turn = database_clean(G, turn)
+
+    # dead_ends
+    view_dead_ends(G, turn)
+    G, turn = run_dead_ends(G, turn)
 
     # 데이터 베이스 저장
     database_export(db_path, export_path, G, turn)

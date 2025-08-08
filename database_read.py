@@ -14,13 +14,14 @@ def build_graph(cursor):
     # 링크 정보
     cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
     for u, v, length, typeno, capprt in cursor.fetchall():
-        G.add_edge(
-            u,
-            v,
-            length=length,
-            typeno=typeno,
-            capprt=capprt,
-        )
+        # capprt=0로 한 방향도로 인식
+        if capprt != 0:
+            G.add_edge(
+                u,
+                v,
+                length=length * 1000,  # Km->m
+                typeno="residental" if typeno in range(8, 32) else "Non-residental",
+            )
 
     return G
 

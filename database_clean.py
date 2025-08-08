@@ -2,14 +2,16 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import networkx as nx
 import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 import osmnx as ox
 import sys
 
-sys.setrecursionlimit(10000)  # 기본은 약 1000, 상황에 맞게 조정
+sys.setrecursionlimit(10000)
 
 
 def isolated_nodes(G, turn):
+    print(
+        f"Before isolation clean node num: {len(G.nodes())}, Before isolation clean turn num: {len(turn)}"
+    )
     # G에서 isolated nodes 찾기
     nodes_to_remove_G = [node for node in G.nodes() if G.degree(node) == 0]
 
@@ -26,6 +28,10 @@ def isolated_nodes(G, turn):
             or t[2] in nodes_to_remove_G
         )
     }
+
+    print(
+        f"After isolation clean node num: {len(G.nodes())}, After isolation clean turn num: {len(turn)}"
+    )
 
     return G, turn
 
@@ -48,8 +54,6 @@ def strongly_connected_component(G, turn):
         parent = low[cur]
 
         # 다음 노드 후보 생성
-        # candidates = G.successors(cur)
-        # use_turn = False
         if prev == None:
             candidates = G.successors(cur)
             use_turn = False
@@ -111,7 +115,7 @@ def plot_sccs(sccs, G, max_plots=20):
     plt.figure(figsize=(10, 10))
 
     # 모든 edge는 회색으로 그리기
-    nx.draw_networkx_edges(G, pos, edge_color="lightgray", arrows=False, width=0.5)
+    nx.draw_networkx_edges(G, pos, edge_color="gray", arrows=False, width=0.5)
 
     # SCC별 노드 색상만 다르게 그리기
     for i in range(num_plots):
@@ -125,21 +129,25 @@ def plot_sccs(sccs, G, max_plots=20):
             label=f"SCC {i+1}",
         )
 
-    plt.title(
-        f"Top {num_plots} Strongly Connected Components (Nodes Colored)", fontsize=14
-    )
+    plt.title(f"Top {num_plots} Strongly Connected Components", fontsize=14)
     plt.axis("off")
     plt.legend(loc="upper right", markerscale=2)
     plt.show()
 
 
 def largest_cc(G, turn, sccs):
+    print(
+        f"Before largest_cc clean node num: {len(G.nodes())}, Before largest_cc clean turn num: {len(turn)}"
+    )
     scc = max(sccs, key=lambda x: len(x["nodes"]))
 
     nodes_to_remove = set(G.nodes()) - set(scc["nodes"])
     G.remove_nodes_from(nodes_to_remove)
 
     turn = turn & set(scc["turns"])
+    print(
+        f"After largest_cc clean node num: {len(G.nodes())}, After largest_cc clean turn num: {len(turn)}"
+    )
 
     return G, turn
 
@@ -147,9 +155,12 @@ def largest_cc(G, turn, sccs):
 def database_clean(G, turn):
     # isolated_nodes를 제거
     G, turn = isolated_nodes(G, turn)
+
+    # largest_cc만 남김.
     sccs = strongly_connected_component(G, turn)
     plot_sccs(sccs, G)
     G, turn = largest_cc(G, turn, sccs)
+
     print(f"✅ Clean data")
 
     return G, turn
