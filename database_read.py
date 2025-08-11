@@ -3,6 +3,9 @@ import sqlite3
 from config import NODE_COL, LINK_COL, TURN_COL
 
 
+residental_type = [9, 10, 13, 14, 17, 18, 21, 22, 25, 26, 29, 30]
+
+
 def build_graph(cursor):
     G = nx.MultiDiGraph()
 
@@ -20,7 +23,7 @@ def build_graph(cursor):
                 u,
                 v,
                 length=length * 1000,  # Km->m
-                typeno="residental" if typeno in range(8, 32) else "Non-residental",
+                type="residental" if typeno in residental_type else "Non-residental",
             )
 
     return G

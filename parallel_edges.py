@@ -13,7 +13,9 @@ def __get_parallel_edges(G):
 
 def run_parallel_edges(G, turn):
     print("parallel_edges")
-    print(f"Before(#node,#edge,#turn):{len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
     parallel_edges = __get_parallel_edges(G)
     edges_to_remove = []
 
@@ -25,7 +27,9 @@ def run_parallel_edges(G, turn):
                 edges_to_remove.append((u, v, k))
 
     G.remove_edges_from(edges_to_remove)
-    print(f"After(#node,#edge,#turn): {len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
 
     return G
 

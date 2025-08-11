@@ -11,6 +11,7 @@ from database_export import database_export
 from dead_ends import run_dead_ends, view_dead_ends
 from parallel_edges import run_parallel_edges, view_parallel_edges
 from self_loops import run_self_loops, view_self_loops
+from gridiron import run_gridiron, view_gridiron
 
 
 def plot_graph(G, title=None):
@@ -27,6 +28,20 @@ def plot_graph(G, title=None):
 
     if title:
         plt.title(title)
+
+    plt.axis("off")
+    plt.show()
+
+
+def plot_residental(G):
+    plt.figure(figsize=(10, 8))
+    edge_color = [
+        "red" if edata.get("type") == "residental" else "black"
+        for _, _, edata in G.edges(data=True)
+    ]
+    pos = {node: (data["x"], data["y"]) for node, data in G.nodes(data=True)}
+    nx.draw_networkx_nodes(G=G, pos=pos, node_size=5, node_color="black")
+    nx.draw_networkx_edges(G=G, pos=pos, edge_color=edge_color, width=1, arrows=False)
 
     plt.axis("off")
     plt.show()
@@ -64,7 +79,14 @@ def run_pipeline():
     # dead_ends
     view_dead_ends(G)
     G, turn = run_dead_ends(G, turn)
+
+    # gridiron
+    view_gridiron(G)
+    G, turn = run_gridiron(G, turn)
     print("✅ Pipeline Complete!")
+
+    # 데이터 베이스 클리닝
+    G, turn = database_clean(G, turn)
 
     # 데이터 베이스 저장
     database_export(db_path, export_path, G, turn)

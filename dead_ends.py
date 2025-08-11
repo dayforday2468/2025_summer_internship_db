@@ -36,7 +36,9 @@ def __get_dead_ends(G):
 
 def run_dead_ends(G, turn):
     print("dead_ends")
-    print(f"Before(#node,#edge,#turn):{len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
     dead_end_nodes = __get_dead_ends(G)
     G.remove_nodes_from(dead_end_nodes)
     turn = {
@@ -46,7 +48,9 @@ def run_dead_ends(G, turn):
             t[0] in dead_end_nodes or t[1] in dead_end_nodes or t[2] in dead_end_nodes
         )
     }
-    print(f"After(#node,#edge,#turn): {len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
 
     return G, turn
 

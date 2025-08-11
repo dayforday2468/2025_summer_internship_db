@@ -13,12 +13,16 @@ def __get_self_loops(G):
 
 def run_self_loops(G, turn):
     print("self_loops")
-    print(f"Before(#node,#edge,#turn):{len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
     self_loops = __get_self_loops(G)
     G.remove_edges_from(self_loops)
     turn = {t for t in turn if not (t[0] == t[1] or t[1] == t[2])}
 
-    print(f"After(#node,#edge,#turn): {len(G.nodes())}|{len(G.edges())}|{len(turn)}")
+    print(
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+    )
 
     return G, turn
 

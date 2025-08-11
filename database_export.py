@@ -21,7 +21,7 @@ def database_export(input_path, output_path, G, turn):
     all_node_nos = {row[0] for row in cursor.fetchall()}
     to_delete_nodes = all_node_nos - valid_node_nos
     print(
-        f"original node num: {len(all_node_nos)}, simplfied node num:{len(valid_node_nos)}"
+        f"original node num: {len(all_node_nos):>6}, simplfied node num:{len(valid_node_nos):>6}"
     )
     for node_no in to_delete_nodes:
         cursor.execute("DELETE FROM NODE WHERE NO=?", (node_no,))
@@ -32,7 +32,7 @@ def database_export(input_path, output_path, G, turn):
     all_link_nos = {(row[0], row[1]) for row in cursor.fetchall()}
     to_delete_links = all_link_nos - valid_link_nos
     print(
-        f"original link num: {len(all_link_nos)}, simplified link num: {len(valid_link_nos)}"
+        f"original link num: {len(all_link_nos):>6}, simplified link num: {len(valid_link_nos):>6}"
     )
     for FROMNODENO, TONODENO in to_delete_links:
         cursor.execute(
@@ -44,7 +44,7 @@ def database_export(input_path, output_path, G, turn):
     all_turn_triples = {(row[0], row[1], row[2]) for row in cursor.fetchall()}
     to_delete_turns = all_turn_triples - turn
     print(
-        f"original turn num: {len(all_turn_triples)}, simplfied turn num: {len(turn)}"
+        f"original turn num: {len(all_turn_triples):>6}, simplfied turn num: {len(turn):>6}"
     )
     for f, v, t in to_delete_turns:
         cursor.execute(
