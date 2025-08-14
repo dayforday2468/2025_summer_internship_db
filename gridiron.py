@@ -37,24 +37,41 @@ def __get_gridiron(G):
     return gridiron
 
 
-def run_gridiron(G, turn):
+def run_gridiron(G, node_df, link_df, turn_df, linkpoly_df):
     print("gridiron")
     print(
-        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
     gridiron = __get_gridiron(G)
     G.remove_nodes_from(gridiron)
-    turn = {
-        t
-        for t in turn
-        if not (t[0] in gridiron or t[1] in gridiron or t[2] in gridiron)
-    }
+
+    gridiron = set(gridiron)
+
+    node_mask = node_df["NO"].isin(gridiron)
+    node_df = node_df[~node_mask]
+
+    link_mask = link_df["FROMNODENO"].isin(gridiron) | link_df["TONODENO"].isin(
+        gridiron
+    )
+    link_df = link_df[~link_mask]
+
+    turn_mask = (
+        turn_df["FROMNODENO"].isin(gridiron)
+        | turn_df["VIANODENO"].isin(gridiron)
+        | turn_df["TONODENO"].isin(gridiron)
+    )
+    turn_df = turn_df[~turn_mask]
+
+    linkpoly_mask = linkpoly_df["FROMNODENO"].isin(gridiron) | linkpoly_df[
+        "TONODENO"
+    ].isin(gridiron)
+    linkpoly_df = linkpoly_df[~linkpoly_mask]
 
     print(
-        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G, turn
+    return G, node_df, link_df, turn_df, linkpoly_df
 
 
 def view_gridiron(G):

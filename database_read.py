@@ -1,23 +1,24 @@
 import networkx as nx
 import sqlite3
-from config import NODE_COL, LINK_COL, TURN_COL
-
+import pandas as pd
 
 residental_type = [9, 10, 13, 14, 17, 18, 21, 22, 25, 26, 29, 30]
 
 
-def build_graph(cursor):
-    G = nx.MultiDiGraph()
+def build_graph(node_df, link_df):
+    G = nx.DiGraph()
 
     # 노드 정보
-    cursor.execute(f"SELECT {','.join(NODE_COL)} FROM NODE")
-    for node_id, x, y in cursor.fetchall():
+    for node_id, x, y in node_df[["NO", "XCOORD", "YCOORD"]].itertuples(
+        index=False, name=None
+    ):
         G.add_node(node_id, x=x, y=y)
 
     # 링크 정보
-    cursor.execute(f"SELECT {','.join(LINK_COL)} FROM LINK")
-    for u, v, length, typeno, capprt in cursor.fetchall():
-        # capprt=0로 한 방향도로 인식
+    for u, v, length, typeno, capprt in link_df[
+        ["FROMNODENO", "TONODENO", "LENGTH", "TYPENO", "CAPPRT"]
+    ].itertuples(index=False, name=None):
+        # capprt=0인 링크는 거름.
         if capprt != 0:
             G.add_edge(
                 u,
@@ -29,23 +30,23 @@ def build_graph(cursor):
     return G
 
 
-def build_turn(cursor):
-    turn = set()
+def build_table(db_path):
+    with sqlite3.connect(db_path) as conn:
+        node_df = pd.read_sql("SELECT * FROM NODE", conn)
 
-    # turn 쿼리
-    cursor.execute(f"SELECT {','.join(TURN_COL)} FROM TURN")
+        # CAPPRT=0인 링크는 거름.
+        link_df = pd.read_sql("SELECT * FROM LINK WHERE CAPPRT!=0", conn)
+        turn_df = pd.read_sql("SELECT * FROM TURN", conn)
+        linkpoly_df = pd.read_sql("SELECT * FROM LINKPOLY", conn)
 
-    turn.update((f, v, t) for f, v, t in cursor.fetchall())
-
-    return turn
+    return node_df, link_df, turn_df, linkpoly_df
 
 
 def database_read(db_path):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
 
-    G = build_graph(cursor)
-    turn = build_turn(cursor)
+    node_df, link_df, turn_df, linkpoly_df = build_table(db_path)
+
+    G = build_graph(node_df, link_df)
     print(f"✅ Builds from {db_path}")
 
-    return G, turn
+    return G, node_df, link_df, turn_df, linkpoly_df

@@ -5,12 +5,17 @@ import sys
 sys.setrecursionlimit(10000)
 
 
-def strongly_connected_component(G, turn):
+def strongly_connected_component(G, turn_df):
     id = 0
     low = {node: -1 for node in G.nodes()}
     on_stack = {node: False for node in G.nodes()}
     node_stack = []
     sccs = []
+    turn = set(
+        turn_df[["FROMNODENO", "VIANODENO", "TONODENO"]].itertuples(
+            index=False, name=None
+        )
+    )
 
     def DFS(cur, prev=None):
         nonlocal id
@@ -37,8 +42,6 @@ def strongly_connected_component(G, turn):
 
         if parent == low[cur]:
             nodes = []
-            links = []
-            turns = []
             while True:
                 node = node_stack.pop()
                 on_stack[node] = False
@@ -46,15 +49,7 @@ def strongly_connected_component(G, turn):
                 if node == cur:
                     break
 
-            for node1, node2 in G.edges():
-                if node1 in nodes and node2 in nodes:
-                    links.append((node1, node2))
-
-            for fromnode, vianode, tonode in turn:
-                if fromnode in nodes and vianode in nodes and tonode in nodes:
-                    turns.append((fromnode, vianode, tonode))
-
-            sccs.append({"nodes": nodes, "links": links, "turns": turns})
+            sccs.append(nodes)
 
         return parent
 
@@ -67,9 +62,9 @@ def strongly_connected_component(G, turn):
 
 def plot_sccs(sccs, G):
     # 노드 개수 기준으로 내림차순 정렬
-    sccs = sorted(sccs, key=lambda scc: len(scc["nodes"]), reverse=True)
+    sccs = sorted(sccs, key=lambda scc: len(scc), reverse=True)
 
-    largest_nodes = set(sccs[0]["nodes"])  # 가장 큰 SCC
+    largest_nodes = set(sccs[0])  # 가장 큰 SCC
     other_nodes = set(G.nodes()) - largest_nodes
 
     pos = {node: (G.nodes[node]["x"], G.nodes[node]["y"]) for node in G.nodes}
@@ -104,30 +99,50 @@ def plot_sccs(sccs, G):
     plt.show()
 
 
-def largest_cc(G, turn, sccs):
+def largest_cc(G, node_df, link_df, turn_df, linkpoly_df, sccs):
     print("largest_cc")
     print(
-        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
-    scc = max(sccs, key=lambda x: len(x["nodes"]))
+    scc = max(sccs, key=lambda x: len(x))
 
-    nodes_to_remove = set(G.nodes()) - set(scc["nodes"])
+    nodes_to_remove = set(G.nodes()) - set(scc)
     G.remove_nodes_from(nodes_to_remove)
 
-    turn = turn & set(scc["turns"])
+    # 테이블 필터링
+    node_mask = node_df["NO"].isin(scc)
+    node_df = node_df[node_mask]
+
+    link_mask = link_df["FROMNODENO"].isin(scc) & link_df["TONODENO"].isin(scc)
+    link_df = link_df[link_mask]
+
+    turn_mask = (
+        turn_df["FROMNODENO"].isin(scc)
+        & turn_df["VIANODENO"].isin(scc)
+        & turn_df["TONODENO"].isin(scc)
+    )
+    turn_df = turn_df[turn_mask]
+
+    linkpoly_mask = linkpoly_df["FROMNODENO"].isin(scc) & linkpoly_df["TONODENO"].isin(
+        scc
+    )
+    linkpoly_df = linkpoly_df[linkpoly_mask]
+
     print(
-        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G, turn
+    return G, node_df, link_df, turn_df, linkpoly_df
 
 
-def database_clean(G, turn):
+def database_clean(G, node_df, link_df, turn_df, linkpoly_df):
     # largest_cc만 남김.
-    sccs = strongly_connected_component(G, turn)
+    sccs = strongly_connected_component(G, turn_df)
     plot_sccs(sccs, G)
-    G, turn = largest_cc(G, turn, sccs)
+    G, node_df, link_df, turn_df, linkpoly_df = largest_cc(
+        G, node_df, link_df, turn_df, linkpoly_df, sccs
+    )
 
     print(f"✅ Clean data")
 
-    return G, turn
+    return G, node_df, link_df, turn_df, linkpoly_df

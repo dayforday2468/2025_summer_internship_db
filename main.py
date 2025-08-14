@@ -12,6 +12,7 @@ from dead_ends import run_dead_ends, view_dead_ends
 from parallel_edges import run_parallel_edges, view_parallel_edges
 from self_loops import run_self_loops, view_self_loops
 from gridiron import run_gridiron, view_gridiron
+from interstitial_nodes import run_interstitial_nodes, view_interstitial_nodes
 
 
 def plot_graph(G, title=None):
@@ -63,33 +64,39 @@ def run_pipeline():
     export_path = os.path.join(script_dir, "simplified_map.sqlite3")
 
     # 그래프 구축
-    G, turn = database_read(db_path)
+    G, node_df, link_df, turn_df, linkpoly_df = database_read(db_path)
 
     # 데이터 베이스 클리닝
-    G, turn = database_clean(G, turn)
-
-    # parallel_edges
-    view_parallel_edges(G)
-    G = run_parallel_edges(G, turn)
-
-    # self_loops
-    view_self_loops(G)
-    G, turn = run_self_loops(G, turn)
+    G, node_df, link_df, turn_df, linkpoly_df = database_clean(
+        G, node_df, link_df, turn_df, linkpoly_df
+    )
 
     # dead_ends
     view_dead_ends(G)
-    G, turn = run_dead_ends(G, turn)
+    G, node_df, link_df, turn_df, linkpoly_df = run_dead_ends(
+        G, node_df, link_df, turn_df, linkpoly_df
+    )
 
     # gridiron
     view_gridiron(G)
-    G, turn = run_gridiron(G, turn)
+    G, node_df, link_df, turn_df, linkpoly_df = run_gridiron(
+        G, node_df, link_df, turn_df, linkpoly_df
+    )
+
+    # interstitial nodes
+    view_interstitial_nodes(G)
+    G, node_df, link_df, turn_df, linkpoly_df = run_interstitial_nodes(
+        G, node_df, link_df, turn_df, linkpoly_df
+    )
     print("✅ Pipeline Complete!")
 
     # 데이터 베이스 클리닝
-    G, turn = database_clean(G, turn)
+    G, node_df, link_df, turn_df, linkpoly_df = database_clean(
+        G, node_df, link_df, turn_df, linkpoly_df
+    )
 
     # 데이터 베이스 저장
-    database_export(db_path, export_path, G, turn)
+    database_export(db_path, export_path, node_df, link_df, turn_df, linkpoly_df)
 
 
 if __name__ == "__main__":

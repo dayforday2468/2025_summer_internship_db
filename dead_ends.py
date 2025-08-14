@@ -8,24 +8,20 @@ def __get_dead_ends(G):
     for node in G.nodes():
         # 전/후방향 이웃 합집합
         neighbors = set(G.successors(node)) | set(G.predecessors(node))
-
-        # 진짜 말단: 이웃이 1개뿐
         if len(neighbors) != 1:
             continue
 
         nbr = next(iter(neighbors))
         lengths = []
 
-        def collect_lengths(u, v):
-            if not G.has_edge(u, v):
-                return
-            data = G.get_edge_data(u, v, default={})
-            for attrs in data.values():
+        def collect_length(u, v):
+            if G.has_edge(u, v):
+                attrs = G.get_edge_data(u, v)  # DiGraph: 바로 속성 dict
                 lengths.append(attrs.get("length", 0))
 
-        # 양방향 모두 확인
-        collect_lengths(node, nbr)
-        collect_lengths(nbr, node)
+        # 양방향 확인
+        collect_length(node, nbr)
+        collect_length(nbr, node)
 
         max_len = max(lengths) if lengths else 0
         if max_len < 500:  # < 500m
@@ -34,25 +30,41 @@ def __get_dead_ends(G):
     return dead_end_nodes
 
 
-def run_dead_ends(G, turn):
+def run_dead_ends(G, node_df, link_df, turn_df, linkpoly_df):
     print("dead_ends")
     print(
-        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
     dead_end_nodes = __get_dead_ends(G)
     G.remove_nodes_from(dead_end_nodes)
-    turn = {
-        t
-        for t in turn
-        if not (
-            t[0] in dead_end_nodes or t[1] in dead_end_nodes or t[2] in dead_end_nodes
-        )
-    }
+
+    dead_end_nodes = set(dead_end_nodes)
+
+    node_mask = node_df["NO"].isin(dead_end_nodes)
+    node_df = node_df[~node_mask]
+
+    link_mask = link_df["FROMNODENO"].isin(dead_end_nodes) | link_df["TONODENO"].isin(
+        dead_end_nodes
+    )
+    link_df = link_df[~link_mask]
+
+    turn_mask = (
+        turn_df["FROMNODENO"].isin(dead_end_nodes)
+        | turn_df["VIANODENO"].isin(dead_end_nodes)
+        | turn_df["TONODENO"].isin(dead_end_nodes)
+    )
+    turn_df = turn_df[~turn_mask]
+
+    linkpoly_mask = linkpoly_df["FROMNODENO"].isin(dead_end_nodes) | linkpoly_df[
+        "TONODENO"
+    ].isin(dead_end_nodes)
+    linkpoly_df = linkpoly_df[~linkpoly_mask]
+
     print(
-        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G, turn
+    return G, node_df, link_df, turn_df, linkpoly_df
 
 
 def view_dead_ends(G):

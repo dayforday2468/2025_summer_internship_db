@@ -11,10 +11,10 @@ def __get_parallel_edges(G):
     return parallel_edges
 
 
-def run_parallel_edges(G, turn):
+def run_parallel_edges(G, node_df, link_df, turn_df, linkpoly_df):
     print("parallel_edges")
     print(
-        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
     parallel_edges = __get_parallel_edges(G)
     edges_to_remove = []
@@ -27,11 +27,18 @@ def run_parallel_edges(G, turn):
                 edges_to_remove.append((u, v, k))
 
     G.remove_edges_from(edges_to_remove)
+
+    for u, v, _ in edges_to_remove:
+        candidates = (link_df["FROMNODENO"] == u) & (link_df["TONODENO"] == v)
+        min_index = link_df.loc[candidates, "LENGTH"].idxmin()
+        drop_index = link_df.loc[candidates].index.difference([min_index])
+        link_df = link_df.drop(index=drop_index)
+
     print(
-        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn):>6}"
+        f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G
+    return G, node_df, link_df, turn_df, linkpoly_df
 
 
 def view_parallel_edges(G):
