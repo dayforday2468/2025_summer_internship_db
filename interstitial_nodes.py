@@ -33,18 +33,11 @@ def __delete_link_df(node, u, v, link_df, use_uv, uv_information):
 
     if not use_uv:
         # 기존 uv_edge 삭제
-        u_v_mask = (link_df["FROMNODENO"] == u) & (link_df["TONODENO"] == v)
-        v_u_mask = (link_df["FROMNODENO"] == v) & (link_df["TONODENO"] == u)
-        drop_mask = u_v_mask | v_u_mask
-        link_df = link_df.loc[~drop_mask].copy()
+        link_df = link_df.drop([(u, v), (v, u)], errors="ignore")
 
-        u_node_mask = (link_df["FROMNODENO"] == u) & (link_df["TONODENO"] == node)
-        node_v_mask = (link_df["FROMNODENO"] == node) & (link_df["TONODENO"] == v)
-        v_node_mask = (link_df["FROMNODENO"] == v) & (link_df["TONODENO"] == node)
-        node_u_mask = (link_df["FROMNODENO"] == node) & (link_df["TONODENO"] == u)
-
-        u_node = link_df.loc[u_node_mask].copy().iloc[0]
-        node_v = link_df.loc[node_v_mask].copy().iloc[0]
+        # edge 병합 준비
+        u_node = link_df.loc[(u, node)].copy()
+        node_v = link_df.loc[(node, v)].copy()
 
         total_no = min(u_node["NO"], node_v["NO"])
         total_length = u_node["LENGTH"] + node_v["LENGTH"]
@@ -62,46 +55,37 @@ def __delete_link_df(node, u, v, link_df, use_uv, uv_information):
         vu["FROMNODENO"], vu["TONODENO"] = uv["TONODENO"], uv["FROMNODENO"]
         vu["UP_DN"] = 1 if uv["UP_DN"] == 0 else 0
 
-        # 기존 u_node_v 엣지 삭제
-        drop_mask = u_node_mask | node_v_mask | v_node_mask | node_u_mask
-        link_df = link_df.loc[~drop_mask].copy()
+        # # 기존 u_node_v 엣지 삭제
+        link_df = link_df.drop(
+            [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
+        )
 
         # 새 행 두 개 추가
-        link_df = pd.concat([link_df, pd.DataFrame([uv, vu])], ignore_index=True)
-
+        to_add = pd.DataFrame([uv, vu]).set_index(
+            ["FROMNODENO", "TONODENO"], drop=False
+        )
+        link_df = pd.concat([link_df, to_add])
     else:
         # 기존 uv_edge 보강
         if "uv" not in uv_information:
-            twoside_row = (
-                link_df.loc[(link_df["FROMNODENO"] == v) & (link_df["TONODENO"] == u)]
-                .iloc[0]
-                .copy()
-            )
+            twoside_row = link_df.loc[(v, u)].copy()
             twoside_row["FROMNODENO"], twoside_row["TONODENO"] = u, v
             twoside_row["UP_DN"] = 1 if twoside_row["UP_DN"] == 0 else 0
         if "vu" not in uv_information:
-            twoside_row = (
-                link_df.loc[(link_df["FROMNODENO"] == u) & (link_df["TONODENO"] == v)]
-                .iloc[0]
-                .copy()
-            )
+            twoside_row = link_df.loc[(u, v)].copy()
             twoside_row["FROMNODENO"], twoside_row["TONODENO"] = v, u
             twoside_row["UP_DN"] = 1 if twoside_row["UP_DN"] == 0 else 0
 
-        u_node_mask = (link_df["FROMNODENO"] == u) & (link_df["TONODENO"] == node)
-        node_v_mask = (link_df["FROMNODENO"] == node) & (link_df["TONODENO"] == v)
-        v_node_mask = (link_df["FROMNODENO"] == v) & (link_df["TONODENO"] == node)
-        node_u_mask = (link_df["FROMNODENO"] == node) & (link_df["TONODENO"] == u)
-
-        # 기존 u_node_v 엣지 삭제
-        drop_mask = u_node_mask | node_v_mask | v_node_mask | node_u_mask
-        link_df = link_df.loc[~drop_mask].copy()
+        link_df = link_df.drop(
+            [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
+        )
 
         if not ("uv" in uv_information and "vu" in uv_information):
-            # 기존 uv_edge 보강 추가
-            link_df = pd.concat(
-                [link_df, pd.DataFrame([twoside_row])], ignore_index=True
+            # # 기존 uv_edge 보강 추가
+            to_add = pd.DataFrame([twoside_row]).set_index(
+                ["FROMNODENO", "TONODENO"], drop=False
             )
+            link_df = pd.concat([link_df, to_add])
 
     return link_df
 
@@ -187,22 +171,18 @@ def __delete_turn_df(node, u, v, turn_df, use_uv, uv_information):
 
 def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_information):
 
-    u_node_mask = (linkpoly_df["FROMNODENO"] == u) & (linkpoly_df["TONODENO"] == node)
-    node_v_mask = (linkpoly_df["FROMNODENO"] == node) & (linkpoly_df["TONODENO"] == v)
-    v_node_mask = (linkpoly_df["FROMNODENO"] == v) & (linkpoly_df["TONODENO"] == node)
-    node_u_mask = (linkpoly_df["FROMNODENO"] == node) & (linkpoly_df["TONODENO"] == u)
+    def _safe_slice(df, key):
+        return df.loc[[key]].copy() if key in df.index else df.iloc[0:0].copy()
 
-    u_node = linkpoly_df.loc[u_node_mask].copy()
-    node_v = linkpoly_df.loc[node_v_mask].copy()
-    v_node = linkpoly_df.loc[v_node_mask].copy()
-    node_u = linkpoly_df.loc[node_u_mask].copy()
+    u_node = _safe_slice(linkpoly_df, (u, node))
+    node_v = _safe_slice(linkpoly_df, (node, v))
+    v_node = _safe_slice(linkpoly_df, (v, node))
+    node_u = _safe_slice(linkpoly_df, (node, u))
 
     if not use_uv:
         # 기존 uv 엣지 삭제
-        u_v_mask = (linkpoly_df["FROMNODENO"] == u) & (linkpoly_df["TONODENO"] == v)
-        v_u_mask = (linkpoly_df["FROMNODENO"] == v) & (linkpoly_df["TONODENO"] == u)
-        drop_mask = u_v_mask | v_u_mask
-        linkpoly_df = linkpoly_df.loc[~drop_mask].copy()
+        linkpoly_df = linkpoly_df.drop([(u, v), (v, u)], errors="ignore")
+
         # node 위치정보
         locrow = node_df.loc[
             node_df["NO"] == node, ["XCOORD", "YCOORD", "ZCOORD"]
@@ -230,9 +210,12 @@ def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_informatio
                 }
             )
 
-            u_v = pd.concat([u_node, node_row, node_v], ignore_index=True)
-            linkpoly_df = linkpoly_df.loc[~(u_node_mask | node_v_mask)].copy()
-            linkpoly_df = pd.concat([linkpoly_df, u_v], ignore_index=True)
+            u_v = pd.concat([u_node, node_row, node_v]).set_index(
+                ["FROMNODENO", "TONODENO"], drop=False
+            )
+            linkpoly_df = linkpoly_df.drop([(u, node), (node, v)], errors="ignore")
+            linkpoly_df = pd.concat([linkpoly_df, u_v])
+            linkpoly_df.sort_index(inplace=True)
 
         # case 2: v->node + node->u  ->  v->u
         elif len(v_node) > 0 or len(node_u) > 0:
@@ -255,15 +238,19 @@ def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_informatio
                 }
             )
 
-            v_u = pd.concat([v_node, node_row, node_u], ignore_index=True)
-            linkpoly_df = linkpoly_df.loc[~(v_node_mask | node_u_mask)].copy()
-            linkpoly_df = pd.concat([linkpoly_df, v_u], ignore_index=True)
+            v_u = pd.concat([v_node, node_row, node_u]).set_index(
+                ["FROMNODENO", "TONODENO"], drop=False
+            )
+            linkpoly_df = linkpoly_df.drop([(v, node), (node, u)], errors="ignore")
+            linkpoly_df = pd.concat([linkpoly_df, v_u])
+            linkpoly_df.sort_index(inplace=True)
+
     else:
         # 기존 node 관련 엣지 삭제
         if len(u_node) > 0 or len(node_v) > 0:
-            linkpoly_df = linkpoly_df.loc[~(u_node_mask | node_v_mask)].copy()
+            linkpoly_df = linkpoly_df.drop([(u, node), (node, v)], errors="ignore")
         elif len(v_node) > 0 or len(node_u) > 0:
-            linkpoly_df = linkpoly_df.loc[~(v_node_mask | node_u_mask)].copy()
+            linkpoly_df = linkpoly_df.drop([(v, node), (node, u)], errors="ignore")
 
     return linkpoly_df
 

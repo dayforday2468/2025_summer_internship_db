@@ -39,6 +39,14 @@ def build_table(db_path):
         turn_df = pd.read_sql("SELECT * FROM TURN", conn)
         linkpoly_df = pd.read_sql("SELECT * FROM LINKPOLY", conn)
 
+        # speed up을 위한 index 재설정
+        link_df = link_df.set_index(
+            ["FROMNODENO", "TONODENO"], drop=False, verify_integrity=True
+        ).sort_index()
+        linkpoly_df = linkpoly_df.set_index(
+            ["FROMNODENO", "TONODENO"], drop=False
+        ).sort_index()
+
     return node_df, link_df, turn_df, linkpoly_df
 
 
