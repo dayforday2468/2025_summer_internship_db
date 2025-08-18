@@ -2,8 +2,15 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
+def __get_dead_ends_thres(G):
+    lengths = [data.get("length", 0) for _, _, data in G.edges(data=True)]
+    lengths.sort()
+    return lengths[len(lengths) // 2]
+
+
 def __get_dead_ends(G):
     dead_end_nodes = []
+    thres = __get_dead_ends_thres(G)
 
     for node in G.nodes():
         # 전/후방향 이웃 합집합
@@ -24,18 +31,22 @@ def __get_dead_ends(G):
         collect_length(nbr, node)
 
         max_len = max(lengths) if lengths else 0
-        if max_len < 500:  # < 500m
+        if max_len < thres:  # < 500m
             dead_end_nodes.append(node)
 
     return dead_end_nodes
 
 
 def run_dead_ends(G, node_df, link_df, turn_df, linkpoly_df):
+    modified = False
+
     print("dead_ends")
     print(
         f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
     dead_end_nodes = __get_dead_ends(G)
+    if len(dead_end_nodes) != 0:
+        modified = True
     G.remove_nodes_from(dead_end_nodes)
 
     dead_end_nodes = set(dead_end_nodes)
@@ -64,7 +75,7 @@ def run_dead_ends(G, node_df, link_df, turn_df, linkpoly_df):
         f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G, node_df, link_df, turn_df, linkpoly_df
+    return G, node_df, link_df, turn_df, linkpoly_df, modified
 
 
 def view_dead_ends(G):

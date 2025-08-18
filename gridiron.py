@@ -15,12 +15,12 @@ def __get_gridiron(G):
         )
         lengths = [edata.get("length", 0) for _, _, edata in incident_edges]
 
-        types = [edata.get("type", "residental") for _, _, edata in incident_edges]
+        types = [edata.get("type", "residential") for _, _, edata in incident_edges]
 
         if max(lengths) >= 300:
             continue
 
-        if not all(t == "residental" for t in types):
+        if not all(t == "residential" for t in types):
             continue
 
         candidate.append(node)
@@ -38,11 +38,15 @@ def __get_gridiron(G):
 
 
 def run_gridiron(G, node_df, link_df, turn_df, linkpoly_df):
+    modified = False
+
     print("gridiron")
     print(
         f"Before(#node,#edge,#turn):{len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
     gridiron = __get_gridiron(G)
+    if len(gridiron) != 0:
+        modified = True
     G.remove_nodes_from(gridiron)
 
     gridiron = set(gridiron)
@@ -71,7 +75,7 @@ def run_gridiron(G, node_df, link_df, turn_df, linkpoly_df):
         f"After(#node,#edge,#turn): {len(G.nodes()):>6}|{len(G.edges()):>6}|{len(turn_df):>6}"
     )
 
-    return G, node_df, link_df, turn_df, linkpoly_df
+    return G, node_df, link_df, turn_df, linkpoly_df, modified
 
 
 def view_gridiron(G):

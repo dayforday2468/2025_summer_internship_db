@@ -136,8 +136,14 @@ def largest_cc(G, node_df, link_df, turn_df, linkpoly_df, sccs):
 
 
 def database_clean(G, node_df, link_df, turn_df, linkpoly_df):
+
+    modified = False
+
     # largest_cc만 남김.
     sccs = strongly_connected_component(G, turn_df)
+    if len(sccs) > 1:
+        modified = True
+
     plot_sccs(sccs, G)
     G, node_df, link_df, turn_df, linkpoly_df = largest_cc(
         G, node_df, link_df, turn_df, linkpoly_df, sccs
@@ -145,4 +151,4 @@ def database_clean(G, node_df, link_df, turn_df, linkpoly_df):
 
     print(f"✅ Clean data")
 
-    return G, node_df, link_df, turn_df, linkpoly_df
+    return G, node_df, link_df, turn_df, linkpoly_df, modified

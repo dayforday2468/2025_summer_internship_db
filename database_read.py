@@ -2,7 +2,7 @@ import networkx as nx
 import sqlite3
 import pandas as pd
 
-residental_type = [9, 10, 13, 14, 17, 18, 21, 22, 25, 26, 29, 30]
+residential_type = [9, 10, 13, 14, 17, 18, 21, 22, 25, 26, 29, 30]
 
 
 def build_graph(node_df, link_df):
@@ -24,7 +24,7 @@ def build_graph(node_df, link_df):
                 u,
                 v,
                 length=length * 1000,  # Km->m
-                type="residental" if typeno in residental_type else "Non-residental",
+                type="residential" if typeno in residential_type else "Non-residential",
             )
 
     return G

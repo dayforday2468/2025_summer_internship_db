@@ -295,9 +295,9 @@ def __delete_interstitial_node(
 
     total_length = G[u][node]["length"] + G[node][v]["length"]
     total_type = (
-        "residental"
-        if G[u][node]["type"] == "residental" and G[node][v]["type"] == "residental"
-        else "Non-residental"
+        "residential"
+        if G[u][node]["type"] == "residential" and G[node][v]["type"] == "residential"
+        else "Non-residential"
     )
 
     use_uv = False
@@ -364,7 +364,10 @@ def __delete_interstitial_node(
 
 
 def run_interstitial_nodes(G, node_df, link_df, turn_df, linkpoly_df):
+    modified = False
     interstitial_nodes = __get_interstitial_nodes(G)
+    if len(interstitial_nodes) != 0:
+        modified = True
 
     cnt = 0
     while True:
@@ -394,7 +397,7 @@ def run_interstitial_nodes(G, node_df, link_df, turn_df, linkpoly_df):
         if len(removed_nodes) == 0:
             break
 
-    return G, node_df, link_df, turn_df, linkpoly_df
+    return G, node_df, link_df, turn_df, linkpoly_df, modified
 
 
 def view_interstitial_nodes(G):
