@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import sqlite3
 import math
 import sys
+from pyproj import Transformer, Geod
 
 sys.setrecursionlimit(100000)
 
@@ -119,13 +120,26 @@ def plot_trajectories(original_traj, simplified_traj, key):
     plt.show()
 
 
+def _calculate_dist(coord1, coord2):
+    # lazy-init (한 번만 생성)
+    if not hasattr(_calculate_dist, "_init"):
+        SRC_CRS = "EPSG:5178"  # gcs_korean_datum_1985 https://epsg.io/5178
+        _calculate_dist._tf = Transformer.from_crs(SRC_CRS, "EPSG:4326", always_xy=True)
+        _calculate_dist._geod = Geod(ellps="WGS84")
+        _calculate_dist._init = True
+
+    x1, y1 = coord1
+    x2, y2 = coord2
+    lon1, lat1 = _calculate_dist._tf.transform(x1, y1)
+    lon2, lat2 = _calculate_dist._tf.transform(x2, y2)
+    _, _, d_m = _calculate_dist._geod.inv(lon1, lat1, lon2, lat2)
+    return d_m / 1000.0  # km
+
+
 def calculate_DTW(original_traj, simplified_traj, key):
     original_coords = original_traj[key]
     simplified_coords = simplified_traj[key]
     n, m = len(original_coords), len(simplified_coords)
-
-    def _calculate_dist(coord1, coord2):
-        return math.dist(coord1, coord2)
 
     dist = {}
     for i in range(n):
@@ -160,9 +174,6 @@ def calculate_DFD(original_traj, simplified_traj, key):
     original_coords = original_traj[key]
     simplified_coords = simplified_traj[key]
     n, m = len(original_coords), len(simplified_coords)
-
-    def _calculate_dist(coord1, coord2):
-        return math.dist(coord1, coord2)
 
     dist = {}
     for i in range(n):
