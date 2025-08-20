@@ -22,6 +22,7 @@ def database_export(input_path, output_path, node_df, link_df, turn_df, linkpoly
         node_df.to_sql("NODE", conn, if_exists="append", index=False)
         link_df.to_sql("LINK", conn, if_exists="append", index=False)
 
+        # turn 중복 제거
         keys = ["FROMNODENO", "VIANODENO", "TONODENO"]
         dup_mask = turn_df.duplicated(keys, keep="first")
         turn_df = turn_df.loc[~dup_mask].copy()

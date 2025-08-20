@@ -1,7 +1,5 @@
 import os
-import matplotlib.pyplot as plt
-import networkx as nx
-import osmnx as ox
+
 
 from database_read import database_read
 from database_clean import database_clean
