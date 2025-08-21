@@ -6,6 +6,7 @@ import sqlite3
 import math
 import sys
 from pyproj import Transformer, Geod
+from tqdm import tqdm
 
 sys.setrecursionlimit(100000)
 
@@ -120,20 +121,24 @@ def plot_trajectories(original_traj, simplified_traj, key):
     plt.show()
 
 
-def _calculate_dist(coord1, coord2):
-    # lazy-init (한 번만 생성)
-    if not hasattr(_calculate_dist, "_init"):
-        SRC_CRS = "EPSG:5178"  # gcs_korean_datum_1985 https://epsg.io/5178
-        _calculate_dist._tf = Transformer.from_crs(SRC_CRS, "EPSG:4326", always_xy=True)
-        _calculate_dist._geod = Geod(ellps="WGS84")
-        _calculate_dist._init = True
+# def _calculate_dist(coord1, coord2):
+#     # lazy-init (한 번만 생성)
+#     if not hasattr(_calculate_dist, "_init"):
+#         SRC_CRS = "EPSG:5178"  # gcs_korean_datum_1985 https://epsg.io/5178
+#         _calculate_dist._tf = Transformer.from_crs(SRC_CRS, "EPSG:4326", always_xy=True)
+#         _calculate_dist._geod = Geod(ellps="WGS84")
+#         _calculate_dist._init = True
 
-    x1, y1 = coord1
-    x2, y2 = coord2
-    lon1, lat1 = _calculate_dist._tf.transform(x1, y1)
-    lon2, lat2 = _calculate_dist._tf.transform(x2, y2)
-    _, _, d_m = _calculate_dist._geod.inv(lon1, lat1, lon2, lat2)
-    return d_m / 1000.0  # km
+#     x1, y1 = coord1
+#     x2, y2 = coord2
+#     lon1, lat1 = _calculate_dist._tf.transform(x1, y1)
+#     lon2, lat2 = _calculate_dist._tf.transform(x2, y2)
+#     _, _, d_m = _calculate_dist._geod.inv(lon1, lat1, lon2, lat2)
+#     return d_m / 1000.0  # km
+
+
+def _calculate_dist(coord1, coord2):
+    return math.dist(coord1, coord2)
 
 
 def calculate_DTW(original_traj, simplified_traj, key):
@@ -219,10 +224,22 @@ def trajectory_similiarity():
     original_traj = make_trajectory(original_link_df, original_db)
     simplified_traj = make_trajectory(simplified_link_df, simplified_db)
 
-    for key in original_traj.keys():
-        print(calculate_DFD(original_traj, simplified_traj, key))
-        print(calculate_DTW(original_traj, simplified_traj, key))
-        plot_trajectories(original_traj, simplified_traj, key)
+    # similarity 계산
+    DFD = []
+    DTW = []
+    for key in tqdm(original_traj.keys()):
+        DFD.append(calculate_DFD(original_traj, simplified_traj, key))
+        DTW.append(calculate_DTW(original_traj, simplified_traj, key))
+
+    # 히스토그램 생성
+    pairs = [("DFD", "DFD histogram", DFD), ("DTW", "DTW histogram", DTW)]
+    fig, axes = plt.subplots(1, 2, figsize=(8, 6))
+    for ax, (xcol, title, data) in zip(axes, pairs):
+        ax.hist(data, bins=20)
+        ax.set_xlabel(xcol)
+        ax.set_title(title)
+
+    plt.show()
 
 
 if __name__ == "__main__":

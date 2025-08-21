@@ -77,10 +77,9 @@ def plot_path_error(original_path_df, simplified_path_df):
     for ax, (xcol, ycol, title) in zip(axes, pairs):
         x = df[xcol].to_numpy()
         y = df[ycol].to_numpy()
-        m = np.isfinite(x) & np.isfinite(y)
-        ax.scatter(x[m], y[m], s=8, alpha=0.25)
+        ax.scatter(x, y, s=8, alpha=0.25)
         ax.axhline(0, color="k", linewidth=1)
-        ax.set_xlabel(xcol.replace("_orig", " (orig)"))
+        ax.set_xlabel(xcol)
         ax.set_ylabel(title)
         ax.set_ylim(-1, 4)
         ax.grid(True, linestyle=":", linewidth=0.7)
