@@ -98,8 +98,8 @@ def path_similiarity():
     original_path_df = pd.read_csv(original_path)
     simplified_path_df = pd.read_csv(simplified_path)
 
-    plot_path_error(original_path_df, simplified_path_df)
     path_statistic(original_path_df, simplified_path_df)
+    plot_path_error(original_path_df, simplified_path_df)
 
 
 if __name__ == "__main__":

@@ -76,6 +76,7 @@ def __delete_link_df(node, u, v, link_df, use_uv, uv_information):
             twoside_row["FROMNODENO"], twoside_row["TONODENO"] = v, u
             twoside_row["UP_DN"] = 1 if twoside_row["UP_DN"] == 0 else 0
 
+        # 기존 u_node_v 엣지 삭제
         link_df = link_df.drop(
             [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
         )

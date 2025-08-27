@@ -230,6 +230,7 @@ def trajectory_similiarity():
     for key in tqdm(original_traj.keys()):
         DFD.append(calculate_DFD(original_traj, simplified_traj, key))
         DTW.append(calculate_DTW(original_traj, simplified_traj, key))
+        # plot_trajectories(original_traj, simplified_traj, key)
 
     # 히스토그램 생성
     pairs = [("DFD", "DFD histogram", DFD), ("DTW", "DTW histogram", DTW)]
