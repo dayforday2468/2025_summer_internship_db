@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def __get_dead_ends_thres(G):
     lengths = [data.get("length", 0) for _, _, data in G.edges(data=True)]
     lengths.sort()
-    return lengths[len(lengths) // 2]
+    return lengths[3 * len(lengths) // 4]
 
 
 def __get_dead_ends(G):

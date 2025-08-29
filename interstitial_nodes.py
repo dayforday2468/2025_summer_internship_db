@@ -16,12 +16,9 @@ def __get_interstitial_nodes(G):
 
         u, v = neighbors
 
-        if not (
-            G.has_edge(u, node)
-            and G.has_edge(node, u)
-            and G.has_edge(v, node)
-            and G.has_edge(node, v)
-        ):
+        forward = G.has_edge(u, node) and G.has_edge(node, v)
+        backward = G.has_edge(v, node) and G.has_edge(node, u)
+        if not (forward or backward):
             continue
 
         interstitial_nodes.append(node)
@@ -29,81 +26,173 @@ def __get_interstitial_nodes(G):
     return interstitial_nodes
 
 
-def __delete_link_df(node, u, v, link_df, use_uv, uv_information):
+def __delete_link_df(
+    node,
+    u,
+    v,
+    link_df,
+    node_information,
+    uv_information,
+    shortest_mode,
+    total_length,
+):
 
-    if not use_uv:
-        # 기존 uv_edge 삭제
-        link_df = link_df.drop([(u, v), (v, u)], errors="ignore")
+    to_add = []
 
-        # edge 병합 준비
-        u_node = link_df.loc[(u, node)].copy()
-        node_v = link_df.loc[(node, v)].copy()
+    if shortest_mode == "node":
+        # 기존 u<->v 삭제
+        drop_list = []
+        if "forward" in uv_information:
+            drop_list.append((u, v))
+        if "backward" in uv_information:
+            drop_list.append((v, u))
+        link_df = link_df.drop(drop_list, errors="ignore")
 
-        total_no = min(u_node["NO"], node_v["NO"])
-        total_length = u_node["LENGTH"] + node_v["LENGTH"]
-        total_capprt = min(u_node["CAPPRT"], node_v["CAPPRT"])
+        # u->node, node->v로 u->v 생성
+        if "forward" in node_information:
+            u_node = link_df.loc[(u, node)].copy()
+            node_v = link_df.loc[(node, v)].copy()
 
-        # u_v 생성
-        uv = u_node.copy()
-        uv["NO"] = total_no
-        uv["TONODENO"] = v
-        uv["LENGTH"] = total_length
-        uv["CAPPRT"] = total_capprt
+            total_no = min(u_node["NO"], node_v["NO"])
+            total_capprt = min(u_node["CAPPRT"], node_v["CAPPRT"])
 
-        # v_u 생성
-        vu = uv.copy()
-        vu["FROMNODENO"], vu["TONODENO"] = uv["TONODENO"], uv["FROMNODENO"]
-        vu["UP_DN"] = 1 if uv["UP_DN"] == 0 else 0
+            uv = u_node.copy()
+            uv["NO"] = total_no
+            uv["TONODENO"] = v
+            uv["LENGTH"] = total_length / 1000
+            uv["CAPPRT"] = total_capprt
 
-        # # 기존 u_node_v 엣지 삭제
-        link_df = link_df.drop(
-            [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
-        )
+            to_add.append(uv)
 
-        # 새 행 두 개 추가
-        to_add = pd.DataFrame([uv, vu]).set_index(
-            ["FROMNODENO", "TONODENO"], drop=False
-        )
+        # v->node, node->u로 v->u 생성
+        if "backward" in node_information:
+            v_node = link_df.loc[(v, node)].copy()
+            node_u = link_df.loc[(node, u)].copy()
+
+            total_no = min(v_node["NO"], node_u["NO"])
+            total_capprt = min(v_node["CAPPRT"], node_u["CAPPRT"])
+
+            vu = v_node.copy()
+            vu["NO"] = total_no
+            vu["TONODENO"] = u
+            vu["LENGTH"] = total_length / 1000
+            vu["CAPPRT"] = total_capprt
+
+            to_add.append(vu)
+
+        # v->node, node->u로 u->v 생성 (반대 방향 생성)
+        if "forward" in uv_information and "forward" not in node_information:
+            v_node = link_df.loc[(v, node)].copy()
+            node_u = link_df.loc[(node, u)].copy()
+
+            total_no = min(v_node["NO"], node_u["NO"])
+            total_capprt = min(v_node["CAPPRT"], node_u["CAPPRT"])
+
+            uv = v_node.copy()
+            uv["NO"] = total_no
+            uv["FROMNODENO"], uv["TONODENO"] = u, v
+            uv["LENGTH"] = total_length / 1000
+            uv["CAPPRT"] = total_capprt
+            uv["UP_DN"] = 1 if uv["UP_DN"] == 0 else 0
+
+            to_add.append(uv)
+
+        # u->node, node->v로 v->u 생성 (반대 방향 생성)
+        if "backward" in uv_information and "backward" not in node_information:
+            u_node = link_df.loc[(u, node)].copy()
+            node_v = link_df.loc[(node, v)].copy()
+
+            total_no = min(u_node["NO"], node_v["NO"])
+            total_capprt = min(u_node["CAPPRT"], node_v["CAPPRT"])
+
+            vu = u_node.copy()
+            vu["NO"] = total_no
+            vu["FROMNODENO"], vu["TONODENO"] = v, u
+            vu["LENGTH"] = total_length / 1000
+            vu["CAPPRT"] = total_capprt
+            vu["UP_DN"] = 1 if vu["UP_DN"] == 0 else 0
+
+            to_add.append(vu)
+
+    elif shortest_mode == "uv":
+
+        # u->node, node->v 있다면 u->v 보강 (v->u를 복사하여)
+        if "forward" in node_information and "forward" not in uv_information:
+            uv = link_df.loc[(v, u)].copy()
+            uv["FROMNODENO"], uv["TONODENO"] = u, v
+            uv["UP_DN"] = 1 if uv["UP_DN"] == 0 else 0
+
+            to_add.append(uv)
+
+        # v->node, node->u 있다면 v->u 보강 (u->v를 복사하여)
+        if "backward" in node_information and "backward" not in uv_information:
+            vu = link_df.loc[(u, v)].copy()
+            vu["FROMNODENO"], vu["TONODENO"] = v, u
+            vu["UP_DN"] = 1 if vu["UP_DN"] == 0 else 0
+
+            to_add.append(vu)
+
+    # 기존 u<->node<->v 삭제
+    link_df = link_df.drop(
+        [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
+    )
+
+    # 새 엣지 추가
+    if to_add:
+        to_add = pd.DataFrame(to_add).set_index(["FROMNODENO", "TONODENO"], drop=False)
         link_df = pd.concat([link_df, to_add])
-    else:
-        # 기존 uv_edge 보강
-        if "uv" not in uv_information:
-            twoside_row = link_df.loc[(v, u)].copy()
-            twoside_row["FROMNODENO"], twoside_row["TONODENO"] = u, v
-            twoside_row["UP_DN"] = 1 if twoside_row["UP_DN"] == 0 else 0
-        if "vu" not in uv_information:
-            twoside_row = link_df.loc[(u, v)].copy()
-            twoside_row["FROMNODENO"], twoside_row["TONODENO"] = v, u
-            twoside_row["UP_DN"] = 1 if twoside_row["UP_DN"] == 0 else 0
-
-        # 기존 u_node_v 엣지 삭제
-        link_df = link_df.drop(
-            [(u, node), (node, v), (v, node), (node, u)], errors="ignore"
-        )
-
-        if not ("uv" in uv_information and "vu" in uv_information):
-            # # 기존 uv_edge 보강 추가
-            to_add = pd.DataFrame([twoside_row]).set_index(
-                ["FROMNODENO", "TONODENO"], drop=False
-            )
-            link_df = pd.concat([link_df, to_add])
 
     return link_df
 
 
-def __delete_turn_df(node, u, v, turn_df, use_uv, uv_information):
+def __delete_turn_df(
+    node, u, v, turn_df, node_information, uv_information, shortest_mode
+):
     # node가 vianode인 turn 제거
     turn_df = turn_df[turn_df["VIANODENO"] != node].copy()
 
-    if use_uv:
+    if shortest_mode == "node":
+        # 기존 u<->v 엣지 관련 turn 제거
+        if "forward" in uv_information:
+            uvx_turn_mask = (turn_df["FROMNODENO"] == u) & (turn_df["VIANODENO"] == v)
+            xuv_turn_mask = (turn_df["VIANODENO"] == u) & (turn_df["TONODENO"] == v)
+            drop_mask = uvx_turn_mask | xuv_turn_mask
+            turn_df = turn_df.loc[~drop_mask].copy()
+
+        if "backward" in uv_information:
+            vux_turn_mask = (turn_df["FROMNODENO"] == v) & (turn_df["VIANODENO"] == u)
+            xvu_turn_mask = (turn_df["VIANODENO"] == v) & (turn_df["TONODENO"] == u)
+            drop_mask = vux_turn_mask | xvu_turn_mask
+            turn_df = turn_df.loc[~drop_mask].copy()
+
+        # 기존 node 관련 turn 업데이트
+        if "forward" in node_information:
+            turn_df.loc[
+                (turn_df["VIANODENO"] == u) & (turn_df["TONODENO"] == node), "TONODENO"
+            ] = v
+            turn_df.loc[
+                (turn_df["FROMNODENO"] == node) & (turn_df["VIANODENO"] == v),
+                "FROMNODENO",
+            ] = u
+
+        if "backward" in node_information:
+            turn_df.loc[
+                (turn_df["VIANODENO"] == v) & (turn_df["TONODENO"] == node), "TONODENO"
+            ] = u
+            turn_df.loc[
+                (turn_df["FROMNODENO"] == node) & (turn_df["VIANODENO"] == u),
+                "FROMNODENO",
+            ] = v
+
+    elif shortest_mode == "uv":
         # 기존 node관련 turn 제거
         turn_df = turn_df[
             (turn_df["FROMNODENO"] != node) & (turn_df["TONODENO"] != node)
         ].copy()
 
-        # 보강 기존 uv 엣지 관련 turn 생성
+        # 기존 u<->v 엣지 보강에 따른 turn 추가
         new_turn = []
-        if "uv" not in uv_information:
+        if "forward" in node_information and "forward" not in uv_information:
             xvu_turn = turn_df[
                 (turn_df["VIANODENO"] == v) & (turn_df["TONODENO"] == u)
             ].copy()
@@ -120,7 +209,7 @@ def __delete_turn_df(node, u, v, turn_df, use_uv, uv_information):
             xuv_turn.loc[:, "FROMNODENO"] = vux_turn["TONODENO"].to_numpy()
             new_turn.append(xuv_turn)
 
-        if "vu" not in uv_information:
+        if "backward" in node_information and "backward" not in uv_information:
             xuv_turn = turn_df[
                 (turn_df["VIANODENO"] == u) & (turn_df["TONODENO"] == v)
             ].copy()
@@ -137,40 +226,16 @@ def __delete_turn_df(node, u, v, turn_df, use_uv, uv_information):
             xvu_turn.loc[:, "FROMNODENO"] = uvx_turn["TONODENO"].to_numpy()
             new_turn.append(xvu_turn)
 
-        # 보강 기존 uv 엣지 관련 turn 추가
-        turn_df = pd.concat([turn_df] + new_turn, ignore_index=True)
-
-    else:
-        # 기존 uv 관련 turn 제거
-        if "uv" in uv_information:
-            uvx_turn_mask = (turn_df["FROMNODENO"] == u) & (turn_df["VIANODENO"] == v)
-            xuv_turn_mask = (turn_df["VIANODENO"] == u) & (turn_df["TONODENO"] == v)
-            drop_mask = uvx_turn_mask | xuv_turn_mask
-            turn_df = turn_df.loc[~drop_mask].copy()
-        if "vu" in uv_information:
-            vux_turn_mask = (turn_df["FROMNODENO"] == v) & (turn_df["VIANODENO"] == u)
-            xvu_turn_mask = (turn_df["VIANODENO"] == v) & (turn_df["TONODENO"] == u)
-            drop_mask = vux_turn_mask | xvu_turn_mask
-            turn_df = turn_df.loc[~drop_mask].copy()
-
-        # 기존 node 관련 turn 업데이트
-        turn_df.loc[
-            (turn_df["VIANODENO"] == u) & (turn_df["TONODENO"] == node), "TONODENO"
-        ] = v
-        turn_df.loc[
-            (turn_df["VIANODENO"] == v) & (turn_df["TONODENO"] == node), "TONODENO"
-        ] = u
-        turn_df.loc[
-            (turn_df["FROMNODENO"] == node) & (turn_df["VIANODENO"] == u), "FROMNODENO"
-        ] = v
-        turn_df.loc[
-            (turn_df["FROMNODENO"] == node) & (turn_df["VIANODENO"] == v), "FROMNODENO"
-        ] = u
+        # 보강 시, 추가
+        if new_turn:
+            turn_df = pd.concat([turn_df] + new_turn, ignore_index=True)
 
     return turn_df
 
 
-def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_information):
+def __delete_linkpoly_df(
+    node, u, v, node_df, linkpoly_df, uv_information, shortest_mode
+):
 
     def _safe_slice(df, key):
         return df.loc[[key]].copy() if key in df.index else df.iloc[0:0].copy()
@@ -180,9 +245,14 @@ def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_informatio
     v_node = _safe_slice(linkpoly_df, (v, node))
     node_u = _safe_slice(linkpoly_df, (node, u))
 
-    if not use_uv:
+    if shortest_mode == "node":
         # 기존 uv 엣지 삭제
-        linkpoly_df = linkpoly_df.drop([(u, v), (v, u)], errors="ignore")
+        drop_list = []
+        if "forward" in uv_information:
+            drop_list.append((u, v))
+        if "backward" in uv_information:
+            drop_list.append((v, u))
+        linkpoly_df = linkpoly_df.drop(drop_list, errors="ignore")
 
         # node 위치정보
         locrow = node_df.loc[
@@ -246,7 +316,7 @@ def __delete_linkpoly_df(node, u, v, node_df, linkpoly_df, use_uv, uv_informatio
             linkpoly_df = pd.concat([linkpoly_df, v_u])
             linkpoly_df.sort_index(inplace=True)
 
-    else:
+    elif shortest_mode == "uv":
         # 기존 node 관련 엣지 삭제
         if len(u_node) > 0 or len(node_v) > 0:
             linkpoly_df = linkpoly_df.drop([(u, node), (node, v)], errors="ignore")
@@ -281,42 +351,43 @@ def __delete_interstitial_node(
         # geometry가 없으면 노드 좌표로 대체
         return [(G.nodes[a]["x"], G.nodes[a]["y"]), (G.nodes[b]["x"], G.nodes[b]["y"])]
 
-    total_length = G[u][node]["length"] + G[node][v]["length"]
-    total_type = (
-        "residential"
-        if G[u][node]["type"] == "residential" and G[node][v]["type"] == "residential"
-        else "Non-residential"
-    )
-
-    use_uv = False
+    node_information = []
     uv_information = []
+    lengths = {}
+    if G.has_edge(u, node) and G.has_edge(node, v):
+        node_information.append("forward")
+        lengths["forward_node"] = G[u][node]["length"] + G[node][v]["length"]
+    if G.has_edge(v, node) and G.has_edge(node, u):
+        node_information.append("backward")
+        lengths["backward_node"] = G[v][node]["length"] + G[node][u]["length"]
     if G.has_edge(u, v):
-        uv_information.append("uv")
-        if G[u][v]["length"] < total_length:
-            use_uv = True
-
+        uv_information.append("forward")
+        lengths["forward_uv"] = G[u][v]["length"]
     if G.has_edge(v, u):
-        uv_information.append("vu")
-        if G[v][u]["length"] < total_length:
-            use_uv = True
+        uv_information.append("backward")
+        lengths["backward_uv"] = G[v][u]["length"]
 
-    if use_uv:
-        if "uv" not in uv_information:
-            G.add_edge(u, v, length=G[v][u]["length"], type=G[v][u]["type"])
+    shortest, total_length = min(lengths.items(), key=lambda x: x[1])
+    shortest_direction, shortest_mode = shortest.split("_")
 
-        if "vu" not in uv_information:
-            G.add_edge(v, u, length=G[u][v]["length"], type=G[u][v]["type"])
-    else:
-        if "uv" in uv_information:
+    if shortest_mode == "node":
+        # 원본 uv 엣지 제거
+        if "forward" in uv_information:
             G.remove_edge(u, v)
-        if "vu" in uv_information:
+        if "backward" in uv_information:
             G.remove_edge(v, u)
 
-        # uv 엣지 추가
-        coords1 = extract_coords(u, node)
-        coords2 = extract_coords(node, v)
-        if coords1 and coords2:
+        if "forward" in node_information:
+            # u->node, node->v로 u->v 생성
+            coords1 = extract_coords(u, node)
+            coords2 = extract_coords(node, v)
             coords = coords1 + coords2[1:]
+            total_type = (
+                "residential"
+                if G[u][node]["type"] == "residential"
+                and G[node][v]["type"] == "residential"
+                else "Non-residential"
+            )
             G.add_edge(
                 u,
                 v,
@@ -325,11 +396,17 @@ def __delete_interstitial_node(
                 type=total_type,
             )
 
-        # vu 엣지 추가
-        coords1 = extract_coords(v, node)
-        coords2 = extract_coords(node, u)
-        if coords1 and coords2:
+        if "backward" in node_information:
+            # v->node, node->u로 v->u 생성
+            coords1 = extract_coords(v, node)
+            coords2 = extract_coords(node, u)
             coords = coords1 + coords2[1:]
+            total_type = (
+                "residential"
+                if G[v][node]["type"] == "residential"
+                and G[node][u]["type"] == "residential"
+                else "Non-residential"
+            )
             G.add_edge(
                 v,
                 u,
@@ -337,14 +414,92 @@ def __delete_interstitial_node(
                 length=total_length,
                 type=total_type,
             )
+
+        if "forward" in uv_information and "forward" not in node_information:
+            # v->node, node->u로 u->v 생성 (반대 방향 복사 생성)
+            coords1 = extract_coords(v, node)
+            coords2 = extract_coords(node, u)
+            coords = list(reversed(coords1 + coords2[1:]))
+            total_type = (
+                "residential"
+                if G[v][node]["type"] == "residential"
+                and G[node][u]["type"] == "residential"
+                else "Non-residential"
+            )
+            G.add_edge(
+                u,
+                v,
+                geometry=LineString(coords),
+                length=total_length,
+                type=total_type,
+            )
+
+        if "backward" in uv_information and "backward" not in node_information:
+            # u->node, node->v로 v->u 생성 (반대 방향 복사 생성)
+            coords1 = extract_coords(u, node)
+            coords2 = extract_coords(node, v)
+            coords = list(reversed(coords1 + coords2[1:]))
+            total_type = (
+                "residential"
+                if G[u][node]["type"] == "residential"
+                and G[node][v]["type"] == "residential"
+                else "Non-residential"
+            )
+            G.add_edge(
+                v,
+                u,
+                geometry=LineString(coords),
+                length=total_length,
+                type=total_type,
+            )
+
+    elif shortest_mode == "uv":
+        # 원본 node 관련 엣지 제거
+        if "forward" in node_information:
+            G.remove_edge(u, node)
+            G.remove_edge(node, v)
+        if "backward" in node_information:
+            G.remove_edge(v, node)
+            G.remove_edge(node, u)
+
+        if "forward" in node_information and "forward" not in uv_information:
+            # uv forward 생성
+            G.add_edge(u, v, length=G[v][u]["length"], type=G[v][u]["type"])
+
+        if "backward" in node_information and "backward" not in uv_information:
+            # uv backward 생성
+            G.add_edge(v, u, length=G[u][v]["length"], type=G[u][v]["type"])
 
     # G에서 노드 제거
     G.remove_node(node)
 
-    link_df = __delete_link_df(node, u, v, link_df, use_uv, uv_information)
-    turn_df = __delete_turn_df(node, u, v, turn_df, use_uv, uv_information)
+    link_df = __delete_link_df(
+        node,
+        u,
+        v,
+        link_df,
+        node_information,
+        uv_information,
+        shortest_mode,
+        total_length,
+    )
+    turn_df = __delete_turn_df(
+        node,
+        u,
+        v,
+        turn_df,
+        node_information,
+        uv_information,
+        shortest_mode,
+    )
     linkpoly_df = __delete_linkpoly_df(
-        node, u, v, node_df, linkpoly_df, use_uv, uv_information
+        node,
+        u,
+        v,
+        node_df,
+        linkpoly_df,
+        uv_information,
+        shortest_mode,
     )
     node_df = node_df[node_df["NO"] != node]
 
